@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+
+input_dir = ARGV[0]
+dublicates_dir = ARGV[1]
+
+puts input_dir
+puts dublicates_dir
+
+require "digest"
+require 'pathname'
+require 'find'
+require 'fileutils'
+require 'uuid'
+
+uuid = UUID.new
+
+filelist = Hash.new()
+
+Find.find(input_dir){ |f|
+    input_path = Pathname.new(f)
+    if input_path.directory?
+        next
+    end
+    output_path = Pathname.new(dublicates_dir).join(uuid.generate+input_path.extname)
+
+    puts "calculate the filehash of %s" % [input_path.basename]
+
+    filehash = Digest::SHA1.file f
+
+    filehash = filehash.to_s
+
+    if filelist.key?(filehash.to_sym)
+        puts "file %s exists copy to %s" % [f, output_path.to_s]
+        FileUtils.move f, output_path.to_s
+    else
+        puts "key %s not exists" % filehash
+        filelist[filehash.to_sym] = f
+    end
+
+}
+
+
+

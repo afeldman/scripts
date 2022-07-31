@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+for tabs in "$@"
+do
+    echo "open ${tabs}"
+    google-chrome -new-tabs "${tabs}"
+done
+

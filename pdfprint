@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+shopt -s nullglob
+
+printer=${2:-DCP-8085DN}
+
+#Brother-DCP-8085DN
+lpr -P $printer -o sides=two-sided-long-edge -o media=A4 -o fit-to-page $1
+
+shopt -u nullglob  # Restore
+

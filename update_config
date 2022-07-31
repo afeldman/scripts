@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+import os, sys
+if __debug__:
+    sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+
+from pathlib2 import Path
+import click
+from appdirs import user_config_dir
+
+from af_config.nexus import SDB
+from af_config.plac import LabelTool
+
+@click.command()
+@click.argument("config_file")
+def main(config_file):
+    config_file = Path(config_file)
+
+    if config_file.exists() and "sdb" in config_file.stem.lower():
+        SDB(conf_file=config_file).update_config()
+    elif config_file.exists() and "label" in config_file.stem.lower():
+        LabelTool(conf_file=config_file).update_config()
+    else:
+        print(f"Nice Idea but I cannot update {config_file.stem}")
+
+if __name__ == "__main__":
+    main()
+

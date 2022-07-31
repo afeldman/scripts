@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+if [ $# -ne 2 ]; then
+  >&2 echo "Usage: $0 <author> <original author>"
+  exit 1
+fi
+
+AUTHOR=$1
+AUTHOR_NAME=$(echo $AUTHOR | perl -wlne '/^(.*?)\s*<.*>$/ and print $1')
+AUTHOR_EMAIL=$(echo $AUTHOR | perl -wlne '/^.*\s*<(.*)>$/ and print $1')
+AUTHOR_ORIGINAL=$2
+
+ALL_COMMITS=$(git log --author="${AUTHOR_ORIGINAL}" --pretty=oneline | awk '{print $1}')
+
+for commit in ${ALL_COMMITS}; do
+    COMMIT=$(git rev-parse --short ${commit})
+    {
+	GIT_SEQUENCE_EDITOR="sed -i -e 's/^pick $COMMIT/edit $COMMIT/'" git rebase -i $COMMIT~1^^ 
+	GIT_COMMITTER_NAME="$AUTHOR_NAME" GIT_COMMITTER_EMAIL="$AUTHOR_EMAIL" git commit --amend --no-edit --author="$AUTHOR"
+	git rebase --continue
+    } &> /dev/null
+done 
+
+echo "$AUTHOR_NAME is now the author of all commits of ${AUTHOR_ORIGINAL}. You suck! You're officially an asshole.";
+

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+MONGO_SERVER=$1
+MONGO_DB=$2
+RETHINKDB_SERVER=$3
+RETHINKDB_DB=$4
+ATTRS=${@:5}
+
+for collection in "$@"
+do
+    if ! func_exists mongoexport
+    then
+        echo "function mongoexport does not exists, please install the function"
+        exit 1
+    fi
+    if ! func_exists rethinkdb
+    then
+        echo "function rethinkdb does not exists, please install the function"
+        exit 1
+    fi
+
+    mongoexport --host ${MONGO_SERVER} \
+    --db ${MONGO_DB} \
+    --collection ${collection} > ${collection}.json
+
+    rethinkdb import \
+    -c ${RETHINKDB_SERVER} \
+    --file ${collection}.json \
+    --table ${RETHINKDB_DB}.${collection}
+
+    rm $collection.json;
+done
+

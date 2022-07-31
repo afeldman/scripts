@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+
+function rclone_cmd
+{
+    cmd=$1
+
+    if [ -z "$cmd" ]
+    then
+	echo "provide an rclone command, stupid!!!"
+	exit 1
+    fi
+    
+    source_=$2
+    destination=$3
+    
+    #rclone ${cmd} --progress --ignore-existing --transfers 30 --checkers 8 --contimeout 60s --timeout 300s --retries 3 --low-level-retries 10 ${source_} ${destination}
+    rclone ${cmd} --progress --ignore-existing --verbose --transfers 30 --checkers 8 --contimeout 60s --timeout 600s --retries 3 --low-level-retries 10 ${source_} ${destination}
+}
+    
+#function recursive_copy
+#{
+#    source_=$1
+#    destination=$2
+#
+#    if [ -z "${destination}" ]
+#    then
+#	echo "destination is missing. this would messup your storage"
+#	exit 1
+#    fi
+#    
+    # first copy the file in current dir
+    #echo "start with ${source_} to ${destination}"
+    #rclone_cmd "copy" "${source_}" "drive:/${destination}" &
+    
+    ## second check for dirs and copy recursively
+#    for file in $(ls "${source_}")
+#    do
+#	if [[ -d "${source_}/${file}" ]]; then
+#	    echo "copy ${source_}/${file} to ${destination}/${file}"
+	    # if file is dir, then create the folder
+#	    rclone_cmd "mkdir" "drive:/${destination}/${file}"
+	    # go on with the next dir
+#	    recursive_copy "${source_}/${file}" "${destination}/${file}"
+#	fi
+#    done
+#}
+
+function usage
+{
+    echo "$0 <option> command"
+    echo "options:"
+    
+    printf "\t c\tcopy to google drive\n"
+    printf "\t l\tlist directory on google drive\n"
+    printf "\t f\tcopy from google drive\n"
+    
+}
+
+function copy_local_usage
+{
+    echo "$0 f source destination"
+    echo "copy from google drive to local filesystem"
+}
+
+function copy_local
+{
+    source_=$1
+    destination=$2
+    
+    if [ "$1" = h ]
+    then
+	copy_local_usage
+	exit 0
+    fi
+    if [ -z "$1" ]
+    then
+	echo "no source. Ok it is up to use I will copy all from starting from root :("
+	source_="/"
+    fi
+    if [ -z "$2" ]
+    then
+	echo "copy to root"
+	destination="/"
+    fi
+   rclone_cmd "copy" "drive:/${source}" "${destination}"
+}
+
+function copy_usage
+{
+    echo "$0 c source destination"
+    echo "copy from source folder to the google drive destination"
+}
+
+function copy
+{
+    source_=$1
+    destination=$2
+        
+    if [ "$1" = h ]
+    then
+	copy_usage
+	exit 0
+    fi
+    if [ -z "$1" ]
+    then
+	echo "no source. might be hard to copy, what do you think? :("
+	exit 0
+    fi
+    if [ -z "$destination" ]
+    then
+	echo "copy to root"
+	destination="/"
+    fi
+
+    
+    rclone_cmd "copy" "${source_}" "drive:/${destination}"
+}
+
+function list_usage
+{
+    echo "$0 l folder"
+    echo "list data in google-drive filesystem filesystem"
+}
+
+function list_
+{
+    source_=$1
+
+    echo $source_
+    
+    if [ "$1" = h ]
+    then
+	list_usage
+	exit 0
+    fi
+    if [ -z "$1" ]
+    then
+	echo "no source. Ok it is up to use I will copy all from starting from root :("
+	source_="/"
+    fi
+    rclone_cmd "ls" "drive:/${source}"
+}
+
+function copy_usage
+{
+    echo "$0 c source destination"
+    echo "copy from source folder to the google drive destination"
+}
+case "$1" in
+    -l|--list ) list_ $2 ;;
+    -f|--from ) copy_local $2 $3 ;;
+    #-r|--recursive) recursive_copy $2 $3 ;;
+    -c|--copy ) copy $2 $3 ;;
+    -h|--help ) usage ;;
+    * ) usage ;;
+esac

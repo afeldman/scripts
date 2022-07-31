@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+
+from ninja_syntax import Writer
+
+with open("build.ninja", "w") as buildfile:
+    n = Writer(buildfile)
+
+    if platform.is_msvc():
+        n.rule("link",
+                command="$cxx $in $libs /nologo /link $ldflags /out:$out",
+                description="LINK $out")
+    else:
+        n.rule("link",
+                command="$cxx $ldflags -o $out $in $libs",
+                description="LINK $out")
+ 

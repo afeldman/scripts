@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+APP=$1
+
+ps -u ${USER} a | grep ${APP} | awk '{print $1}'
+

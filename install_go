@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+GO_VERSION="1.16.6"
+
+if [ ! -z "$1" ]
+then
+   GO_VERSION=$1
+fi
+
+#download
+wget -c https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz -O - | tar -xz -C /tmp/
+
+#set install dir
+sudo mkdir -p /opt/go/${GO_VERSION}
+sudo mv /tmp/go/* /opt/go/${GO_VERSION}
+rm -Rf /tmp/go
+
+# change versioning
+sed -i -r "/GO_VERSION=\"([0-9]*).([0-9]*).([0-9]*)\"/c\GO_VERSION=\"${GO_VERSION}\"" ~/.bash_exports
+
+source ~/.bashrc
+

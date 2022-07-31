@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+input_dir = ARGV[0]
+
+puts input_dir
+
+require "digest"
+require 'pathname'
+require 'find'
+require 'fileutils'
+require 'uuid'
+
+uuid = UUID.new
+
+filelist = Hash.new()
+
+Find.find(input_dir){ |f|
+    input_path = Pathname.new(f)
+
+    if input_path.directory?
+        if input_path.empty?
+            puts "%s is empty dir" % input_path.realpath.to_s
+            input_path.rmdir()
+        end
+    end
+}

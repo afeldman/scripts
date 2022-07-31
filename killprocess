@@ -1,0 +1,21 @@
+#!/bin/bash
+
+if [ "$1" == "-u" ] ; then
+        PID=`grep "$2" /etc/passwd | cut -d ":" -f3`
+        processes=`ps aux | grep "$PID" | egrep -v "PID|ps \-au|killbyname|grep" | awk '{ print $2}'`
+        echo "############# Killing all processes of user: $2 ############################"
+else
+        echo "############# Killing processes by name: $1 ############################"
+        processes=`ps aux | grep "$1" | egrep -v "killbyname|grep" | awk '{ print $2}' `
+fi
+
+
+for process in $processes ; do
+        # "command" stores the entire commandline of the process that will be killed
+        #it may be useful to show it but in some cases it is counter-productive
+        #command=`ps aux | grep $process | egrep -v "grep" | awk '{ print $2 }'`
+        echo "Killing process: $process"
+        echo ""
+        kill -9 $process
+done
+

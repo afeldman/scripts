@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+#declare -f "$1" > /dev/null;
+type "$1" > /dev/null;
+

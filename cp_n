@@ -1,0 +1,112 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+
+require 'logger'
+require 'pathname'
+require 'fileutils'
+require 'digest'
+require 'thor'
+require 'concurrent'
+require 'parallel'
+require 'colorize'
+
+def os_walk(origin)
+  root = Pathname(origin)
+  files, dirs = [], []
+  Pathname(root).find do |path|
+    unless path == root
+      dirs << path if path.directory?
+      files << path if path.file?
+    end
+  end
+  [root, files, dirs]
+end
+
+class CopyCLI < Thor
+
+  def self.exit_on_failure?
+    true
+  end
+
+  desc "copy data", "Copy data from ORIGIN to TARGET"
+  method_option :number_of_files, :aliases => "-n", :default => 0, :type => :numeric
+  method_option :verbose, :aliases => "-v", :default => 0, :type => :numeric
+  method_option :sorted, :aliases => "-s", :default => false, :type => :boolean
+  def copy origin, target
+
+    logger = Logger.new(STDOUT)
+    logger.level = Logger::DEBUG
+
+    verbose = options[:verbose]
+
+    root, files, _ = os_walk origin
+
+    if options[:sorted]
+      if verbose > 0
+        logger.info "sort file list by size".blue
+      end
+
+      files.sort_by! {|a| File.size(a)}
+
+    end
+
+    if options[:number_of_files] > 0
+      number_of_files = options[:number_of_files]
+    else
+      number_of_files = files.length
+    end
+
+    copy_files = Hash.new
+    files.each do |file|
+      key = file.parent.to_s
+      if !copy_files.key? key
+        copy_files[key] = Array.new
+      end
+
+      if copy_files[key].length < number_of_files
+        copy_files[key] << file
+      end
+    end
+
+    copy_files.each do |key, value|
+      value.each do |file|
+        destination = Pathname(file.to_s.sub!(root.to_s, target+"/"))
+        if verbose > 0
+          logger.debug "#{file.to_s} => #{destination.to_s}".yellow
+        end
+
+        if !destination.parent.directory?
+          if verbose > 1
+            logger.debug "build folder #{destination.parent.to_s}".yellow
+          end
+          FileUtils.mkdir_p destination.parent
+        end
+
+        if destination.exist?
+
+          fprint = Digest::SHA1.file file.to_s
+          dprint = Digest::SHA1.file destination.to_s
+          if fprint == dprint
+            logger.warn "file #{destination.to_s} exists".red
+          else
+            if verbose > 1
+              logger.info "#{file.to_s} => #{destination.parent.to_s}".blue
+            end
+            FileUtils.cp file, destination.parent
+          end
+
+        else
+          if verbose > 1
+            logger.info "#{file.to_s} => #{destination.parent.to_s}".blue
+          end
+          FileUtils.cp file, destination.parent
+        end
+
+      end
+    end
+  end
+
+   default_task :copy
+end
+
+CopyCLI.start(ARGV.dup.unshift("copy"))

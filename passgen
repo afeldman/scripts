@@ -1,0 +1,11 @@
+#!/usr/bin/perl -w
+
+$length= @ARGV ? $ARGV[0]-1 : "16";
+
+@vals = split "", "0x1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-?!@^&*()";
+
+for (0 .. $length){
+    print $vals[ rand($#vals) ];
+}
+print "\n";
+

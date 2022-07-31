@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+IP=""
+
+function remote_command {
+    cmd="\"$@\""
+    ssh -y -l ${USER} ${IP} /bin/bash -c ${cmd}
+}
+
+if [ $# -eq 0 ] ; then 
+    remote_command "pwd"
+elif [ -z "$1" ] ; then
+    remote_command "pwd"
+elif [ "$1" = "sb" ] ; then
+    remote_command sbatch $2
+elif [ "$1" = "sq" ] ; then
+    remote_command squeue
+else
+    remote_command $@
+fi

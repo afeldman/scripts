@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+
+require 'pathname'
+require 'logger'
+require 'colorize'
+require 'thor'
+
+class VideoCut < Thor
+  def self.exit_on_failure?
+    true
+  end
+
+  desc "cat the video into pathes", "Cut the video using start and end in seconds"
+  method_option :verbose, :alias => "-v", :default => 0, :type => :numeric
+  def cut(video_path, start_time, end_time)
+    logger = Logger.new(STDOUT)
+    logger.level = Logger::DEBUG
+
+    verbose = options[:verbose]
+
+    if verbose > 0
+      logger.debug "start time is #{start_time}s and end point in time is #{end_time}".yellow 
+    end
+
+    input_file = Pathname.new(video_path)
+
+    if verbose > 0 
+      logger.info input_file.realpath.to_s.blue
+    end
+
+    x = start_time + "_" + end_time + "_" + input_file.basename.to_s
+
+    output_file = input_file.dirname + x.to_s
+    
+    if verbose > 0 
+      logger.info output_file.realpath.to_s.blue
+    end
+
+    system("ffmpeg -i #{input_file.to_path} -ss #{start_time} -to #{end_time} -c copy -c:v mpeg4 -b:v 2500k #{output_file.to_path}")
+
+  end
+
+  default_task :cut
+end
+
+VideoCut.start(ARGV.dup.unshift("cut"))
+

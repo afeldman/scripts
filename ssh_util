@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+function copy_to_server
+{
+	ssh-copy-id -o ConnectTimeout=3 ${1}@${2}
+}
+
+function xargs_ssh
+{
+    scriptmode=0
+    command="uptime"
+    input=""
+    serverlist=""
+    username=${USER}
+
+    local OPTIND
+    while getopts "sf:c:u:" opt ; do
+      case "$opt" in
+	  s ) scriptmode=1 ;;
+	  f ) serverlist=$OPTARG ;;
+	  c ) command="$OPTARG" ;;
+	  u ) username=$OPTARG ;;
+	  * ) echo "miss use" ; exit
+      esac
+  done
+  shift $((OPTIND-1))
+
+  if [[ -z "$serverlist" ]]; then
+      if [[ -f "${HOME}/.local/share/parallel_xargs/serverlist" ]]; then
+	  serverlist="${HOME}/.local/share/parallel_xargs/serverlist"
+      else
+	  tmpfile=$(mktemp)
+	  while read data; do
+	      echo $data >> $tmpfile
+	  done
+	  serverlist=$tmpfile
+      fi
+  fi
+
+  threads=$(awk '/^processor/ {cpu++} END {print cpu}' /proc/cpuinfo)
+
+  bluetext=$(tput setaf 4)
+  normaltext=$(tput sgr0)
+  boldtxt=$(tput bold)
+
+  if [[ "$scriptmode" == 0 ]]; then
+      cmd="{ printf \"###### ${bluetxt}${boldtxt}SERVER${normaltxt} ######\n\$(ssh -o ConnectTimeout=3 ${username}@SERVER \"$command\" 2>&1)\n\n\"; }"
+  else
+      cmd="{ printf \"SERVER: \$(ssh -o ConnectTimeout=3  ${username}@SERVER \"$command\" 2>&1)\" | sed 's/$/\\\n/' | tr -d '\n' | sed 's/\\\n$/\n/'; }"
+  fi
+
+  xargs -a $serverlist -I"SERVER" -P${threads} -n1 sh -c "$cmd"
+
+  if [[ ! -z "$tempfile" ]]; then
+      find $tempfile -type f | xargs rm
+  fi
+}
+
+case "$1" in
+    c ) copy_to_server $2 $3 ;;
+    s ) xargs_ssh  ${@: 2} ;;
+    * ) echo "usage $0 [sc] <option>" ;;
+esac

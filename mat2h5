@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+import sys
+from pathlib import Path
+
+import click
+import hdf5storage as h
+
+from scipy.io import loadmat
+
+@click.command()
+@click.argument("mat_file")
+def convert(mat_file):
+    input_path = Path(mat_file)
+
+    try:
+        data = loadmat(input_path.absolute())
+        h.savemat(input_path.with_suffix('.h5'), data)
+    except Exception as e:
+        print(str(e))
+
+
+if __name__=="__main__":
+   sys.exit(convert())
+

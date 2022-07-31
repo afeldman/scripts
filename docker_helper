@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+APP=docker
+
+function container_rm {
+    ${APP} rm $(${APP} container ls -aq)
+}
+
+function rmi_dagling {
+    ${APP} rmi $(${APP} images -f "dangling=true" -q) --force
+}
+
+function rmi_id {
+    ${APP} rmi $(${APP} images -q)
+}
+
+function rmi_none {
+    ${APP} rmi $(${APP} images | grep "^" | awk "{print $3}")
+}
+
+case "$1" in
+    c) container_rm ;;
+    i) rmi_id ;;
+    n) rmi_none ;;
+    d) rmi_dagling ;;
+    *) echo "usage $0 [cind]" ;;
+esac

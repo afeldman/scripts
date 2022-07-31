@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+import os
+import click
+import shutil
+
+@click.command()
+@click.argument("dir")
+def main(dir):
+    os.chdir(dir)
+    for filename in os.listdir(dir):
+        newfilename = filename.replace(" ", "_")
+        shutil.move(os.path.abspath(filename), newfilename)
+
+if __name__ == "__main__":
+   main()
+

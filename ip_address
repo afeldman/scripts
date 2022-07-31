@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+
+URL=$(curl "https://api.ipify.org?format=json")
+
+echo "************************************ IP ***************************************"
+echo ""
+echo $URL | jq '.ip'
+

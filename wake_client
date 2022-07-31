@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+MAC=$1
+
+#sdb upload
+wakeonlan ${MAC}

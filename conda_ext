@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+usage() {                                      # Function: Print a help message.
+    echo "Usage: $0 " 1>&2
+}
+
+backup_single_conda() {
+    env=$1
+
+    echo "activate $env"
+    conda activate ${env}
+    echo "export $env"
+    conda env export > ~/conda/${env}.yml
+
+}
+
+backup_all_conda() {
+    for env in $(conda env list | awk '!(NR<=2) {print $1}')
+    do
+        backup_single_conda ${env}
+    done
+}
+
+install_from_pip() {
+    input=$1
+
+    delim=" "
+    install_line=""
+
+    while IFS= read -r line
+    do
+        package=$(sed "s/==.*//g")
+        install_line=${install_line}${delim}${package}
+    done < "$input"
+
+    conda install `echo ${install_line} | awk '{ gsub(/\n/," "); print }' ` -y
+}
+
+echo "start conda workflow"
+
+while getopts ":bhi:s:" options
+do
+    case ${options} in
+        i) echo "start install"
+           install_from_pip ${OPTARG} ;;
+        b) echo "backup all conda env data"
+           backup_all_conda ;;
+        s) echo "backup a single conda env"
+           backup_single_conda ${OPTARG} ;;
+        \?) usage ;;
+        :)
+            echo "option -$OPTARG requires an argument"
+            usage
+            ;;
+    esac
+done

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+openssl enc -aes-256-cbc -k ${1} -P -md sha1 -pbkdf2
+

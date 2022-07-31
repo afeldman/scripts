@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+DEST=${@:-1}
+SORC=( ${@:1:$# - 1} )
+[ $# -lt 2  ]       && echo "too few args"
+
+echo $SORC

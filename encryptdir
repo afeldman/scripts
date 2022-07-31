@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# create tar bz2
+
+tar cjf $2 $1
+
+# prep encryption
+echo "make sure you created a gpg --gen-key first"
+gpg -e -r "anton feldmann <anton.feldmann@gmail.com>" $2
+
+# delete tar file
+rm $2

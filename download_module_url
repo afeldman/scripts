@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+
+# first make a connection to uver usb to the android device
+#       1. start putting the device into the
+#       2. make the usb accessable in the developers menu
+
+import os
+import click
+import json
+import requests
+from yattag import Doc, indent
+
+@click.command()
+@click.option('--max', default=10000, help='maximal numbers')
+@click.argument("html_name")
+def mobile(max, html_name):
+    output = os.system("adb forward tcp:9222 localabstract:chrome_devtools_remote")
+
+    print(f"exit output for adb is: {output}")
+
+    url="http://localhost:9222/json/list"
+
+    resp = requests.get(url)
+
+    print(f"status code is: {resp.status_code}")
+
+    doc, tag, text = Doc().tagtext()
+    with tag('html'):
+        with tag('header'):
+            with tag('title'):
+                text("bookmarks")
+        with tag('body'):
+            with tag('dl'):
+                for data in resp.json():
+                    if data["type"] != "page":
+                        continue
+                    url = data["url"]
+                    title = data["title"]
+                    with tag("dt"):
+                        with tag('a', href=url):
+                            text(title)
+                    close_responce = requests.get("http://localhost:9222/json/close/" + data['id'])
+                    print(close_responce.text)
+
+    with open(html_name, "w") as f:
+        text = indent(doc.getvalue(), indent_text = True)
+        f.write(text)
+
+if __name__=="__main__":
+    mobile()

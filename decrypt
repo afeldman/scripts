@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+PASSPHRASE=$(cat ~/.local/enc/salt.enc)
+
+if [ -f "$1" ]; then
+   cat $1 | openssl enc -base64 -pbkdf2 -d -aes-256-cbc -nosalt -pass pass:${PASSPHRASE}
+else
+   echo $1 | openssl enc -base64 -pbkdf2 -d -aes-256-cbc -nosalt -pass pass:${PASSPHRASE}
+fi

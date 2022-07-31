@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+PASHPHRASE=$(cat ~/.local/enc/salt.enc)
+
+if [ $# -eq 1 ]; then
+    echo $1 | openssl enc -base64 -pbkdf2 -e -aes-256-cbc  -nosalt -pass pass:${PASHPHRASE}
+elif [ $# -eq 2 ]; then
+    echo $1 | openssl enc -base64 -pbkdf2 -e -aes-256-cbc -nosalt -pass pass:${PASHPHRASE} > $2
+else
+    echo "usage $0 word <file>"
+fi

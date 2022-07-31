@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+function b_tab
+{
+	google-chrome $1
+}
+
+
+echo "start development mode by tapping 7 times on the build number (Settings>>About Phone>>Build Number)"
+
+echo ""
+echo "start USB debugging in the Development mode menu item"
+printf "\n\n"
+echo "open chrome://inspect#devices in the google chrome browser"
+echo "open the debug console using F12"
+echo "get the list of urls:"
+printf "
+str=\"\";
+for (i=0;i<links.length;i++){
+  if (links[i].querySelector('.name').innerText != null){
+    str += links[i].querySelector('.url').innerText +  '|END|'
+  } else {
+    console.log(links[i])
+  }
+}
+"
+printf "\n\n"
+
+# create tmp file
+tmpfile=$(
+  echo 'mkstemp(template)' |
+    m4 -D template="${TMPDIR:-/tmp}/build_url"
+) || exit
+
+exec {FD_W}>"${tmpfile}"
+exec {FD_R}<"${tmpfile}"
+rm -f -- "${tmpfile}"
+
+# copy irl list into tmpfile
+echo $1 >&$FD_W
+
+for url in $(cat <&$FD_R | sed 's/|END|/\n/g')
+do
+	printf "%s\n" $url
+	b_tab "${url}"
+done
+
+

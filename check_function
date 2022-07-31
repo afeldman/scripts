@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+type "$1" &>/dev/null ||  echo "install $1 first"

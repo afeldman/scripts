@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import math as m
+import fire
+
+def deg_to_rad(x:float):
+  return m.radians(x)
+
+def euler_to_quaternion(yaw:float, pitch:float, roll:float):
+
+  roll = roll / 2.
+  pitch = pitch / 2.
+  yaw = yaw / 2.
+
+  qx = m.sin(roll) * m.cos(pitch) * m.cos(yaw) - m.cos(roll) * m.sin(pitch) * m.sin(yaw)
+  qy = m.cos(roll) * m.sin(pitch) * m.cos(yaw) + m.sin(roll) * m.cos(pitch) * m.sin(yaw)
+  qz = m.cos(roll) * m.cos(pitch) * m.sin(yaw) - m.sin(roll) * m.sin(pitch) * m.cos(yaw)
+  qw = m.cos(roll) * m.cos(pitch) * m.cos(yaw) + m.sin(roll) * m.sin(pitch) * m.sin(yaw)
+
+  return {"x": qx, "y": qy, "z": qz, "w": qw}
+
+def quaternion_to_euler(w:float, x:float, y:float, z:float):
+
+  t0 = 2 * (w * x + y * z)
+  t1 = 1 - 2 * (x * x + y * y)
+  roll = m.atan2(t0, t1)
+
+  t2 = 2 * (w * y - z * x)
+  t2 = 1 if t2 > 1 else t2
+  t2 = -1 if t2 < -1 else t2
+  pitch = m.asin(t2)
+
+  t3 = 2 * (w * z + x * y)
+  t4 = 1 - 2 * (y * y + z * z)
+  yaw = m.atan2(t3, t4)
+
+  return {"roll": m.degrees(roll), "pitch": m.degrees(pitch), "yaw": m.degrees(yaw)}
+
+if __name__ == '__main__':
+  fire.Fire({
+      'e2q': euler_to_quaternion,
+      'q2e': quaternion_to_euler,
+      'd2r': deg_to_rad
+  })
+  

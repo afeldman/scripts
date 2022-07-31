@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+printer=${2:-DCP-8085DN}
+
+for pdf in $(ls $1/*pdf)
+do
+    echo $pdf $printer
+    pdfprint $pdf $printer
+done
+

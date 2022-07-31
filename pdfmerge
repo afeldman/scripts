@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+PDFOUT=merged_$(date +"%d_%m").pdf
+rm -f ${PDFOUT}
+
+for f in $@
+do
+    printf "processing %-50s" "$f  ..."
+    if [ -f "$PDFOUT" ]; then
+	# https://stackoverflow.com/questions/8158584/ghostscript-to-merge-pdfs-compresses-the-result
+	#  -dPDFSETTINGS=/prepress
+	status=`gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile="${PDFOUT}.new" ${PDFOUT} "$f" 2> /dev/null`
+	nChars=`echo -n "${status}" | wc -c`
+	if [ $nChars -gt 0 ]
+	then
+	    echo "gs ERROR"
+	else
+	    echo "successfully"
+	fi
+
+	mv "${PDFOUT}.new" ${PDFOUT}
+    else
+	cp "$f" ${PDFOUT}
+	echo "successfully"
+    fi
+done
+

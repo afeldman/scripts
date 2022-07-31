@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+DIR=$1
+size_var=`du -s ${DIR} | awk '{ print $1}'`
+last_size_var=${size_var}
+
+while true; do
+    size_var=`du -s ${DIR} | awk '{ print $1}'`
+    if [[ ${size_var} == ${last_size_var} ]]; then
+        break
+    fi
+    last_size_var=${size_var}
+    sleep 10
+done
+
+size_var=`du -sh ${DIR} | awk '{ print $1}'`
+
+printf "%s\n", "finishing copying of ${size_var}"
+
