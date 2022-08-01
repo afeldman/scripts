@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 mv /opt/dev/* /dev/null
-mv /home/user/* /dev/null
+mv /home/${USER}/* /dev/null
