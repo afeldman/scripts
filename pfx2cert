@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+inputfile=$1
+password=$2
+
+if [[ -f ${inputfile} ]]; then
+    # Extract the basename
+    b="${inputfile%.*}"
+
+    echo "convert ${inputfile} into pem"
+    openssl pkcs12 -in "${inputfile}" -out "${b}.pem" -passin "pass:${password}" -passout "pass:${password}" &
+
+    echo "build ca from ${inputfile}"
+    openssl pkcs12 -in "${inputfile}" -out "${b}_ca.pem" -cacerts -nokeys -passin "pass:${password}" -passout "pass:${password}" &
+    
+    echo "build client ca from ${inputfile}"
+    openssl pkcs12 -in "${inputfile}" -out "${b}_client.pem" -clcerts -nokeys -passin "pass:${password}" -passout "pass:${password}" &
+    
+    echo "build key from ${inputfile}"
+    openssl pkcs12 -in "${inputfile}" -out "${b}_key.pem" -nocerts -passin "pass:${password}" -passout "pass:${password}" &
+
+else
+    echo "no input file found: " ${inputfile} 
+fi
+
