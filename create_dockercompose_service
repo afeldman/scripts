@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# create a systemd service for autostart utilizing docker-compose
+
+is_user_root() {
+    [ "$(id -u)" -eq 0 ];
+}
+
+SERVICENAME_TMP=$(basename $(pwd))
+SERVICENAME=${1:-$SERVICENAME_TMP}
+
+DOCKERCOMPOSE=$(which docker-compose)
+
+if [ "$($DOCKERCOMPOSE -h)" ] ; then
+
+    SERVICEPATH="/etc/systemd/system/${SERVICENAME}.service"
+
+    echo "create systemd service in ${SERVICEPATH}"
+
+    if is_user_root; then
+
+cat > ${SERVICEPATH} <<EOF
+[Unit]
+Description=${SERVICENAME}
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+User=root
+Group=docker
+WorkingDirectory=$(pwd)
+# shutdown action
+ExecStartPre=${DOCKERCOMPOSE} -f docker-compose.yaml down
+# start action
+ExecStart=${DOCKERCOMPOSE} -f docker-compose.yaml up
+# stop action
+ExecStop=${DOCKERCOMPOSE} -f docker-compose.yaml down
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        echo "Enable and start ${SERVICENAME}"
+        # enable
+        systemctl enable ${SERVICENAME}.service
+        # start
+        systemctl start ${SERVICENAME}.service
+        exit 0
+    else
+        echo "no root try again"
+        exit 1
+    fi
+fi
