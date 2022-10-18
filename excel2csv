@@ -1,0 +1,19 @@
+#/usr/bin/env python3
+
+import sys
+from fire import Fire
+from pandas import read_excel
+from pathlib import Path
+
+def convert(input_name:str, output_path: str):
+
+    filename = Path(input_name)
+    output_path = Path(output_path)
+
+    df = read_excel(filename, sheet_name=None)  
+    for key, _ in df.items(): 
+        return df[key].to_csv(f'{str(output_path)}/{key}.csv')
+
+
+if __name__ == '__main__':
+    sys.exit(Fire(convert))
