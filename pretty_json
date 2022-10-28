@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-json_files="$@"
+json_dir="${1}"
 
-for file in "${json_files}"
+for file in $(ls ${json_dir})
 do
     json_path=$(realpath ${file})
     echo $(date) ":" "${json_path}" 2>&1

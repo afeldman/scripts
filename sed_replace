@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+old=$1
+new=$2
+dir=$3
+
+for file in $(ls ${dir})
+do
+    file_path=$(realpath ${file})
+    echo $(date) ":" "${file_path}" 2>&1
+    sed -i "s/${old}/${new}/g" ${file_path}
+done
