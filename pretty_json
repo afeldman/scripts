@@ -6,5 +6,5 @@ for file in $(ls ${json_dir})
 do
     json_path=$(realpath ${file})
     echo $(date) ":" "${json_path}" 2>&1
-    cat <<< $(jq . "${json_path}") > "${json_path}"
+    cat <<< $(jq . "${json_path}") > "${json_path}" &
 done
