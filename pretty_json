@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+json_files="$@"
+
+for file in "${json_files}"
+do
+    json_path=$(realpath ${file})
+    echo $(date) ":" "${json_path}" 2>&1
+    cat <<< $(jq . "${json_path}") > "${json_path}"
+done
