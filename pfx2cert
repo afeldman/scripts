@@ -16,7 +16,7 @@ if [[ -f ${inputfile} ]]; then
     echo "build client ca from ${inputfile}"
     openssl pkcs12 -in "${inputfile}" -out "${b}_client.pem" -clcerts -nokeys -passin "pass:${password}" -passout "pass:${password}" &
     
-    echo "build key from ${inputfile}"
+    echo "build key0 from ${inputfile}"
     openssl pkcs12 -in "${inputfile}" -out "${b}_key.pem" -nocerts -passin "pass:${password}" -passout "pass:${password}" &
 
 else
