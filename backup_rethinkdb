@@ -2,17 +2,18 @@
 
 usage () {
     echo "this is a backup program for your rethinkdb server"
-    echo "usage: ${0} [-s <host:port>] [-e <database|database.table>] [-f <file>] [-p <passwort_file> -c <cert_file>] [-n <number_of_clients>]"
+    echo "usage: ${0} [-s <host:port>] [-e <database|database.table>] [-f <file>] [-p <password>] [-k <passwort_file> -c <cert_file>] [-n <number_of_clients>]"
 }
 
 host='localhost:28015'
 file=""
 passfile=""
+password=""
 cert=""
 clients=""
 database=""
 
-while getopts "he:s:f:p:t:n:" arg; do
+while getopts "he:s:f:k:pt:n:" arg; do
     case $arg in
         h|help) # display Help
             usage
@@ -23,8 +24,10 @@ while getopts "he:s:f:p:t:n:" arg; do
             host=${OPTARG};;
         f|file) #add file
             file=${OPTARG};;
-        p|password) # add password file
+        k|passwordfile) # add password file
             passfile=${OPTARG};;
+        p|password) # add password
+            password=1;;
         c|cert) # add cert file
             cert=${OPTARG};;
         n|number) # threads
@@ -35,8 +38,8 @@ while getopts "he:s:f:p:t:n:" arg; do
    esac
 done
 
-if [ -n "${cert}" ] || [ -n "${password}" ]; then
-    if [ -z "${password}" ]; then 
+if [ -n "${cert}" ] || [ -n "${passfile}" ]; then
+    if [ -z "${passfile}" ]; then 
         usage
         echo "password file missing"
         exit 1
@@ -52,7 +55,7 @@ if [ -z "${clients}" ]; then
     clients=$(nproc --all)
 fi
 
-if [ -z "${file}" ] && [ -z "${database}" ] && [ -z "${cert}" ] && [ -z "${password}" ] ; then
+if [ -z "${file}" ] && [ -z "${database}" ] && [ -z "${cert}" ] && [ -z "${passfile}" ] ; then
     rethinkdb-dump -c ${host} --clients ${clients}
 fi
 if [ -n "${file}" ]; then
@@ -64,16 +67,24 @@ fi
 if [ -n "${database}" ] && [ -n "${file}" ]; then
     rethinkdb-dump -c ${host} -f ${file} -e ${database} --clients ${clients}
 fi
-if [ -n "${cert}" ] && [ -n "${password}" ]; then 
-    rethinkdb-dump -c ${host} --password-file ${password} --tls-cert ${cert} --clients ${clients}
+if [ -n "${cert}" ] && [ -n "${passfile}" ]; then 
+    rethinkdb-dump -c ${host} --password-file ${passfile} --tls-cert ${cert} --clients ${clients}
 fi
-if [ -n "${file}" ] && [ -n "${cert}" ] && [ -n "${password}" ]; then 
-    rethinkdb-dump -c ${host} -f ${file} --password-file ${password} --tls-cert ${cert} --clients ${clients}
+if [ -n "${file}" ] && [ -n "${cert}" ] && [ -n "${passfile}" ]; then 
+    rethinkdb-dump -c ${host} -f ${file} --password-file ${passfile} --tls-cert ${cert} --clients ${clients}
 fi
-if [ -n "${database}" ] && [ -n "${cert}" ] && [ -n "${password}" ]; then 
-    rethinkdb-dump -c ${host} -e ${database} --password-file ${password} --tls-cert ${cert} --clients ${clients}
+if [ -n "${database}" ] && [ -n "${cert}" ] && [ -n "${passfile}" ]; then 
+    rethinkdb-dump -c ${host} -e ${database} --password-file ${passfile} --tls-cert ${cert} --clients ${clients}
 fi
-if [ -n "${file}" ] && [ -n "${database}" ] && [ -n "${cert}" ] && [ -n "${password}" ]; then 
-    rethinkdb-dump -c ${host} -f ${file} -e ${database} --password-file ${password} --tls-cert ${cert} --clients ${clients}
+if [ -n "${file}" ] && [ -n "${database}" ] && [ -n "${cert}" ] && [ -n "${passfile}" ]; then 
+    rethinkdb-dump -c ${host} -f ${file} -e ${database} --password-file ${passfile} --tls-cert ${cert} --clients ${clients}
 fi
-
+if [ -n "${file}" ] && [ -n "${database}" ] && [ -n "${password}" ]; then 
+    rethinkdb-dump -c ${host} -f ${file} -e ${database} --password --clients ${clients}
+fi
+if [ -n "${database}" ] && [ -n "${password}" ]; then 
+    rethinkdb-dump -c ${host} -e ${database} --password --clients ${clients}
+fi
+if [ -n "${password}" ]; then 
+    rethinkdb-dump -c ${host} --password --clients ${clients}
+fi
