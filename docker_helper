@@ -18,10 +18,25 @@ function rmi_none {
     ${APP} rmi $(${APP} images | grep "^" | awk "{print $3}")
 }
 
+function removecontainers {
+    ${APP} stop $(docker ps -aq)
+    ${APP} rm $(docker ps -aq)
+}
+
+function armageddon {
+    removecontainers
+    docker network prune -f
+    docker rmi -f $(docker images --filter dangling=true -qa)
+    docker volume rm $(docker volume ls --filter dangling=true -q)
+    docker rmi -f $(docker images -qa)
+}
+
 case "$1" in
+    a) armageddon ;;
+    r) removecontainers ;;
     c) container_rm ;;
     i) rmi_id ;;
     n) rmi_none ;;
     d) rmi_dagling ;;
-    *) echo "usage $0 [cind]" ;;
+    *) echo "usage $0 [arcind]" ;;
 esac
