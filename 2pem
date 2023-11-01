@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+CERT_FILE=$1
+OUT_FILE="${CERT_FILE%%.*}.pem"
+
+printf "create %s pem of %s", "${OUT_FILE}", "${CERT_FILE}"
+
+openssl x509 -in "${CERT_FILE}" -out "${OUT_FILE}" -outform PEM
+
+sudo mv "${CERT_FILE}" /etc/pki/ca-trust/source/anchors
+sudo update-ca-trust
