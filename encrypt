@@ -1,11 +1,51 @@
 #!/usr/bin/env bash
 
-PASHPHRASE=$(cat ~/.local/enc/salt.enc)
+FOLDER_PATH="${HOME}/.local/enc"
+PASSWORD=$(echo $RANDOM | md5sum | head -c 20; echo)
+
+
+usage() {
+    echo "Usage: $0 [-p <string>] [-d <string>] filename"
+    exit 1
+}
+
+while getopts ":d:p:" o; do
+    case "${o}" in
+        d)
+            FOLDER_PATH=${OPTARG}
+            ;;
+        p)
+            PASSWORD=${OPTARG}
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+salt() {
+    openssl enc -aes-256-cbc -k "${1}" -P -md sha1 -pbkdf2
+}
+
+if [ ! -d  "${FOLDER_PATH}" ]
+then
+    printf "create folder %s", "${FOLDER_PATH}"
+    mkdir -p "${FOLDER_PATH}"
+fi
+
+if [ ! -f "${FOLDER_PATH}/salt.enc" ]
+then
+    touch "${FOLDER_PATH}/salt.enc"
+    salt "${PASSWORD}" >> "${FOLDER_PATH}/salt.enc"
+    echo "your password is ${PASSWORD} write down"
+fi
+
+PASHPHRASE=$(cat ${FOLDER_PATH}/salt.enc)
 
 if [ $# -eq 1 ]; then
-    echo $1 | openssl enc -base64 -pbkdf2 -e -aes-256-cbc  -nosalt -pass pass:${PASHPHRASE}
+    echo "$1" | openssl enc -base64 -pbkdf2 -e -aes-256-cbc  -nosalt -pass pass:"${PASHPHRASE}"
 elif [ $# -eq 2 ]; then
-    echo $1 | openssl enc -base64 -pbkdf2 -e -aes-256-cbc -nosalt -pass pass:${PASHPHRASE} > $2
+    echo "$1" | openssl enc -base64 -pbkdf2 -e -aes-256-cbc -nosalt -pass pass:"${PASHPHRASE}" > $2
 else
     echo "usage $0 word <file>"
 fi

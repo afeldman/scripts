@@ -29,11 +29,15 @@ install_from_pip() {
 
     while IFS= read -r line
     do
-        package=$(sed "s/==.*//g")
+        # get name from line
+        package=$(sed "s/==.*//g" ${line})
+        # build install package list
         install_line=${install_line}${delim}${package}
     done < "$input"
 
-    conda install `echo ${install_line} | awk '{ gsub(/\n/," "); print }' ` -y
+    conda_command=$(echo "${install_line}" | awk '{ gsub(/\n/," "); print }' )
+
+    conda install "${conda_command}" -y
 }
 
 echo "start conda workflow"
@@ -48,6 +52,7 @@ do
         s) echo "backup a single conda env"
            backup_single_conda ${OPTARG} ;;
         \?) usage ;;
+        h) usage;;
         :)
             echo "option -$OPTARG requires an argument"
             usage

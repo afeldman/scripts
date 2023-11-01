@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 
+if ! command -v git &> /dev/null
+then
+    echo "git not installed"
+    exit 1
+fi
+
+if ! command -v make &> /dev/null
+then
+    echo "gnumake not installed"
+    exit 1
+fi
+
 OUTPUT=/tmp/capnproto
 
 git clone https://github.com/afeldman/capnproto.git ${OUTPUT}
-cd ${OUTPUT}/c++
+cd ${OUTPUT}/c++ || exit 1
+
 autoreconf -i
 ./configure
+
 make -j6 check
 sudo make install
 

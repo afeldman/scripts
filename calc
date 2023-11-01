@@ -1,3 +1,9 @@
 #!/usr/bin/env bash
 
+if ! [ -x "$(command -v awk)" ];
+then
+    echo "awk is not installed. please install the software first"
+    exit 1
+fi
+
 awk "BEGIN { print $* }";

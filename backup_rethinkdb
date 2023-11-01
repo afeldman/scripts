@@ -13,24 +13,30 @@ cert=""
 clients=""
 database=""
 
-while getopts "he:s:f:k:pt:n:" arg; do
+if ! command -v rethinkdb-dump &> /dev/null
+then
+    echo "program rethinkdb-dump is not installed"
+    exit 1
+fi
+
+while getopts "he:s:f:c:k:p:n:" arg; do
     case $arg in
-        h|help) # display Help
+        h) # display Help
             usage
             exit 0;;
-        e|export) #add database
+        e) #add database
             database=${OPTARG};;
-        s|server) #add server
+        s) #add server
             host=${OPTARG};;
-        f|file) #add file
+        f) #add file
             file=${OPTARG};;
-        k|passwordfile) # add password file
+        k) # add password file
             passfile=${OPTARG};;
-        p|password) # add password
+        p) # add password
             password=1;;
-        c|cert) # add cert file
+        c) # add cert file
             cert=${OPTARG};;
-        n|number) # threads
+        n) # threads
             clients=${OPTARG};;
         *) # rest
             usage

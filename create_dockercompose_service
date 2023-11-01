@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-
 # create a systemd service for autostart utilizing docker-compose
 
 is_user_root() {
     [ "$(id -u)" -eq 0 ];
 }
 
-SERVICENAME_TMP=$(basename $(pwd))
+SERVICENAME_TMP=$(basename "$(pwd)")
+# if a name is handover otherwise make a default service name
+# utilizing the filename
 SERVICENAME=${1:-$SERVICENAME_TMP}
 
 DOCKERCOMPOSE=$(which docker-compose)
