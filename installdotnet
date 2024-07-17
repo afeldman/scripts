@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+wget https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh
+chmod +x /tmp/dotnet-install.sh
+/tmp/dotnet-install.sh --version latest
+/tmp/dotnet-install.sh --version latest --runtime aspnetcore
+/tmp/dotnet-install.sh --channel 8.0
