@@ -3,7 +3,7 @@ class Scripts < Formula
   homepage "https://github.com/afeldman/scripts"
   version "0.1.0"
   url "https://github.com/afeldman/scripts/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "PLACEHOLDER"  # updated automatically by release.sh
+  sha256 "e925cacaceaacdc673f058d33b799c978635bdd709a39e31661d30acd824e065"
 
   SKIP = %w[install.sh release.sh CLAUDE.md].freeze
 
