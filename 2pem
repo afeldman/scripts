@@ -1,11 +1,31 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-CERT_FILE=$1
+CERT_FILE="${1:?usage: 2pem <certificate-file>}"
 OUT_FILE="${CERT_FILE%%.*}.pem"
 
-printf "create %s pem of %s", "${OUT_FILE}", "${CERT_FILE}"
-
+printf "converting %s -> %s\n" "${CERT_FILE}" "${OUT_FILE}"
 openssl x509 -in "${CERT_FILE}" -out "${OUT_FILE}" -outform PEM
 
-sudo mv "${CERT_FILE}" /etc/pki/ca-trust/source/anchors
-sudo update-ca-trust
+case "$(uname -s)" in
+  Darwin)
+    sudo security add-trusted-cert -d -r trustRoot \
+      -k /Library/Keychains/System.keychain "${OUT_FILE}"
+    ;;
+  Linux)
+    if [ -d /etc/pki/ca-trust/source/anchors ]; then
+      # RHEL / Fedora / CentOS
+      sudo cp "${OUT_FILE}" /etc/pki/ca-trust/source/anchors/
+      sudo update-ca-trust
+    elif [ -d /usr/local/share/ca-certificates ]; then
+      # Debian / Ubuntu
+      sudo cp "${OUT_FILE}" /usr/local/share/ca-certificates/
+      sudo update-ca-certificates
+    else
+      printf "Certificate saved as %s — add to your CA store manually\n" "${OUT_FILE}"
+    fi
+    ;;
+  *)
+    printf "Certificate saved as %s — add to your CA store manually\n" "${OUT_FILE}"
+    ;;
+esac

@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# scripts-update — update afeldman/scripts to the latest version
+exec curl -fsSL https://raw.githubusercontent.com/afeldman/scripts/master/install.sh | sh

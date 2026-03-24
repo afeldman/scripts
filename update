@@ -1,4 +1,27 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-sudo sh -c "apt-get update; apt-get upgrade -y; apt-get autoremove -y"
-
+case "$(uname -s)" in
+  Darwin)
+    brew update
+    brew upgrade
+    brew autoremove
+    ;;
+  Linux)
+    if command -v apt-get >/dev/null 2>&1; then
+      sudo sh -c "apt-get update; apt-get upgrade -y; apt-get autoremove -y"
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf upgrade -y
+      sudo dnf autoremove -y
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum update -y
+    else
+      echo "error: no supported package manager found (apt/dnf/yum)" >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "error: unsupported OS $(uname -s)" >&2
+    exit 1
+    ;;
+esac
