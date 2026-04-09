@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+JOB_ID="${1:-}"
+
+if [ -z "$JOB_ID" ]; then
+  echo "❌ Usage: $0 <JOB_ID>"
+  exit 1
+fi
+
+echo "🔎 Job: $JOB_ID"
+
+# --------------------------------------------------
+# 1. Container Instance ARN
+# --------------------------------------------------
+CONTAINER_INSTANCE_ARN=$(aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.containerInstanceArn' \
+  --output text)
+
+if [ "$CONTAINER_INSTANCE_ARN" = "None" ] || [ -z "$CONTAINER_INSTANCE_ARN" ]; then
+  echo "❌ Kein containerInstanceArn (Fargate oder Job noch nicht gestartet)"
+  exit 1
+fi
+
+echo "📦 Container Instance ARN:"
+echo "  $CONTAINER_INSTANCE_ARN"
+
+# --------------------------------------------------
+# 2. ECS Cluster aus ARN extrahieren
+# --------------------------------------------------
+ECS_CLUSTER=$(echo "$CONTAINER_INSTANCE_ARN" | cut -d'/' -f2)
+
+echo "🧩 ECS Cluster:"
+echo "  $ECS_CLUSTER"
+
+# --------------------------------------------------
+# 3. EC2 Instance ID
+# --------------------------------------------------
+EC2_INSTANCE_ID=$(aws ecs describe-container-instances \
+  --cluster "$ECS_CLUSTER" \
+  --container-instances "$CONTAINER_INSTANCE_ARN" \
+  --query 'containerInstances[0].ec2InstanceId' \
+  --output text)
+
+if [ "$EC2_INSTANCE_ID" = "None" ] || [ -z "$EC2_INSTANCE_ID" ]; then
+  echo "❌ Keine EC2 Instance gefunden"
+  exit 1
+fi
+
+echo "🖥 EC2 Instance:"
+echo "  $EC2_INSTANCE_ID"
+
+# --------------------------------------------------
+# 4. Security Groups
+# --------------------------------------------------
+echo ""
+echo "🔐 Security Groups:"
+aws ec2 describe-instances \
+  --instance-ids "$EC2_INSTANCE_ID" \
+  --query 'Reservations[0].Instances[0].SecurityGroups' \
+  --output table
+
+# --------------------------------------------------
+# 5. Inbound Rules (alle SGs)
+# --------------------------------------------------
+SG_IDS=$(aws ec2 describe-instances \
+  --instance-ids "$EC2_INSTANCE_ID" \
+  --query 'Reservations[0].Instances[0].SecurityGroups[].GroupId' \
+  --output text)
+
+echo ""
+echo "📥 Inbound Rules:"
+aws ec2 describe-security-groups \
+  --group-ids $SG_IDS \
+  --query 'SecurityGroups[].{GroupId:GroupId,Inbound:IpPermissions}' \
+  --output json
+
+# --------------------------------------------------
+# 6. Outbound Rules (alle SGs)
+# --------------------------------------------------
+echo ""
+echo "📤 Outbound Rules:"
+aws ec2 describe-security-groups \
+  --group-ids $SG_IDS \
+  --query 'SecurityGroups[].{GroupId:GroupId,Outbound:IpPermissionsEgress}' \
+  --output json
+
+# --------------------------------------------------
+# 7. Netzwerk Infos
+# --------------------------------------------------
+
+SUBNET_ID=$(aws ec2 describe-instances \
+  --instance-ids "$EC2_INSTANCE_ID" \
+  --query 'Reservations[0].Instances[0].SubnetId' \
+  --output text)
+
+echo ""
+echo "🌐 Subnet:"
+echo "  $SUBNET_ID"
+
+echo ""
+echo "📡 Route Table:"
+aws ec2 describe-route-tables \
+  --filters "Name=association.subnet-id,Values=$SUBNET_ID" \
+  --query 'RouteTables[].Routes' \
+  --output table
+
+echo ""
+echo "🚧 Network ACL:"
+aws ec2 describe-network-acls \
+  --filters "Name=association.subnet-id,Values=$SUBNET_ID" \
+  --query 'NetworkAcls[].Entries' \
+  --output json

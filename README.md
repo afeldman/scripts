@@ -39,6 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/afeldman/scripts/master/uninstall.s
 
 | Script | Description |
 |---|---|
+| `gotofish` | GoFish lifecycle manager — install/upgrade/remove/sync afeldman tools via fish-food |
 | `encrypt` / `decrypt` | AES-256-CBC file encryption (OpenSSL) |
 | `encryptdir` / `decryptdir` | Encrypt/decrypt entire directories |
 | `2pem` / `pfx2cert` | Convert DER/PFX certificates to PEM |

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+JOB_ID="${1:-}"
+
+echo "🌍 Using region: $AWS_REGION"
+if [ -z "$JOB_ID" ]; then
+  echo "❌ Usage: $0 <JOB_ID>"
+  exit 1
+fi
+
+echo "🔎 Inspecting AWS Batch Job: $JOB_ID"
+echo ""
+
+# --------------------------------------------------
+# 1. Job Details
+# --------------------------------------------------
+echo "📦 Job Details:"
+aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].{
+    Status:status,
+    JobName:jobName,
+    JobQueue:jobQueue,
+    JobDefinition:jobDefinition,
+    CreatedAt:createdAt,
+    StartedAt:startedAt,
+    StoppedAt:stoppedAt
+  }' \
+  --output table
+
+echo ""
+
+# --------------------------------------------------
+# 2. Environment Variables
+# --------------------------------------------------
+echo "🌱 Environment Variables:"
+aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.environment' \
+  --output table
+
+echo ""
+
+# --------------------------------------------------
+# 3. Container Info
+# --------------------------------------------------
+echo "🐳 Container Info:"
+aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.{
+    Image:image,
+    VCPUs:vcpus,
+    Memory:memory,
+    InstanceType:instanceType,
+    TaskArn:taskArn,
+    ContainerInstanceArn:containerInstanceArn
+  }' \
+  --output table
+
+echo ""
+
+# --------------------------------------------------
+# 4. Log Stream
+# --------------------------------------------------
+LOG_STREAM=$(aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.logStreamName' \
+  --output text)
+
+if [ "$LOG_STREAM" = "None" ] || [ -z "$LOG_STREAM" ]; then
+  echo "❌ Kein Log Stream gefunden"
+  exit 1
+fi
+
+echo "📜 Log Stream:"
+echo "$LOG_STREAM"
+echo ""
+
+# --------------------------------------------------
+# 5. Logs holen (robust)
+# --------------------------------------------------
+LOG_GROUP="/aws/batch/job"
+
+echo "📡 Logs:"
+for i in {1..5}; do
+  if LOGS=$(aws logs get-log-events \
+    --log-group-name "$LOG_GROUP" \
+    --log-stream-name "$LOG_STREAM" \
+    --start-from-head \
+    --query 'events[*].message' \
+    --output text 2>/dev/null); then
+
+    if [ -n "$LOGS" ]; then
+      echo "$LOGS"
+      break
+    fi
+  fi
+
+  echo "⏳ Logs noch nicht verfügbar... ($i)"
+  sleep 2
+done
+
+echo ""
+
+# --------------------------------------------------
+# 6. Quick Checks
+# --------------------------------------------------
+echo "🧠 Quick Checks:"
+
+if echo "$LOGS" | grep -q "no authorization header"; then
+  echo "❌ Authorization Header fehlt"
+fi
+
+if echo "$LOGS" | grep -q "partialSuccess"; then
+  echo "✅ OTEL funktioniert"
+fi
+
+if echo "$LOGS" | grep -q "Connection refused\|timeout"; then
+  echo "❌ Netzwerk Problem"
+fi
+
+echo ""
+echo "🏁 Fertig."

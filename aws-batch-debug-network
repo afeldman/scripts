@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+JOB_QUEUE="${JOB_QUEUE:-batch_job_queue}"
+JOB_DEF="${JOB_DEF:-debug-network}"
+HOST="${HOST:-ingress.eu-west-1.aws.dash0.com}"
+
+echo "🔎 Debugging network for host: $HOST"
+echo "Using queue: $JOB_QUEUE"
+echo "Using job definition: $JOB_DEF"
+
+# --------------------------------------------------
+# 0. Job Definition prüfen / erstellen
+# --------------------------------------------------
+echo "🔍 Prüfe Job Definition..."
+
+EXISTS=$(aws batch describe-job-definitions \
+  --job-definition-name "$JOB_DEF" \
+  --status ACTIVE \
+  --query 'length(jobDefinitions)' \
+  --output text)
+
+if [ "$EXISTS" = "0" ]; then
+  echo "⚙️  Erstelle Job Definition: $JOB_DEF"
+
+  aws batch register-job-definition \
+    --job-definition-name "$JOB_DEF" \
+    --type container \
+    --container-properties '{
+      "image": "public.ecr.aws/docker/library/alpine:3.19",
+      "command": ["sh","-c","sleep 3600"],
+      "vcpus": 1,
+      "memory": 512
+    }'
+
+  echo "✅ Job Definition erstellt"
+else
+  echo "✅ Job Definition existiert"
+fi
+
+# --------------------------------------------------
+# 1. Debug Command
+# --------------------------------------------------
+CMD="echo ==== INSTALL ====;
+apk add --no-cache curl bind-tools busybox-extras > /dev/null;
+
+echo ==== DNS ====;
+nslookup $HOST || true;
+
+echo ==== TCP 4317 ====;
+nc -zv $HOST 4317 || true;
+
+echo ==== TCP 443 ====;
+nc -zv $HOST 443 || true;
+
+echo ==== CURL HTTPS ====;
+curl -v https://$HOST || true;
+
+sleep 2"
+
+# --------------------------------------------------
+# 2. Job starten
+# --------------------------------------------------
+JOB_ID=$(aws batch submit-job \
+  --job-name "debug-network-$(date +%s)" \
+  --job-queue "$JOB_QUEUE" \
+  --job-definition "$JOB_DEF" \
+  --container-overrides "$(jq -n \
+    --arg cmd "$CMD" \
+    '{command:["sh","-c",$cmd]}')" \
+  --query 'jobId' \
+  --output text)
+
+echo "🚀 Job gestartet: $JOB_ID"
+
+# --------------------------------------------------
+# 3. Warten
+# --------------------------------------------------
+echo "⏳ Warte auf Job..."
+while true; do
+  STATUS=$(aws batch describe-jobs \
+    --jobs "$JOB_ID" \
+    --query 'jobs[0].status' \
+    --output text)
+
+  echo "  Status: $STATUS"
+
+  case "$STATUS" in
+    SUCCEEDED|FAILED) break ;;
+  esac
+
+  sleep 5
+done
+
+# --------------------------------------------------
+# 4. Log Stream holen
+# --------------------------------------------------
+LOG_STREAM=$(aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.logStreamName' \
+  --output text)
+
+if [ "$LOG_STREAM" = "None" ] || [ -z "$LOG_STREAM" ]; then
+  echo "❌ Kein Log Stream gefunden"
+  exit 1
+fi
+
+echo "📜 Log Stream: $LOG_STREAM"
+echo ""
+
+# --------------------------------------------------
+# 5. Logs holen
+# --------------------------------------------------
+echo "📡 Hole Logs..."
+
+# Fallback Log Group
+LOG_GROUP=$(aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.logConfiguration.logGroupName' \
+  --output text 2>/dev/null || echo "")
+
+if [ -z "$LOG_GROUP" ] || [ "$LOG_GROUP" = "None" ]; then
+  LOG_GROUP="/aws/batch/job"
+fi
+
+echo "Using log group: $LOG_GROUP"
+
+# Retry (CloudWatch ist eventual consistent...)
+for i in {1..5}; do
+  if LOGS=$(aws logs get-log-events \
+    --log-group-name "$LOG_GROUP" \
+    --log-stream-name "$LOG_STREAM" \
+    --start-from-head \
+    --query 'events[*].message' \
+    --output text 2>/dev/null); then
+
+    if [ -n "$LOGS" ]; then
+      break
+    fi
+  fi
+
+  echo "⏳ Logs noch nicht verfügbar... retry $i"
+  sleep 2
+done
+
+if [ -z "${LOGS:-}" ]; then
+  echo "❌ Keine Logs gefunden (trotz Job Erfolg)"
+  exit 1
+fi
+
+echo "$LOGS"
+
+# --------------------------------------------------
+# 6. Analyse 🔥
+# --------------------------------------------------
+echo ""
+echo "🧠 Analyse:"
+
+if echo "$LOGS" | grep -q "4317.*timed out"; then
+  echo "❌ Port 4317 BLOCKED"
+fi
+
+if echo "$LOGS" | grep -q "4317.*open"; then
+  echo "✅ Port 4317 erreichbar"
+fi
+
+if echo "$LOGS" | grep -q "443.*open"; then
+  echo "✅ Port 443 erreichbar"
+fi
+
+if echo "$LOGS" | grep -q "Could not resolve\|NXDOMAIN"; then
+  echo "❌ DNS Problem"
+fi
+
+if echo "$LOGS" | grep -q "Connected\|open"; then
+  echo "✅ Netzwerk grundsätzlich OK"
+fi
+
+echo ""
+echo "Fertig."

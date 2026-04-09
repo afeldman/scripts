@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --------------------------------------------------
+# Load .env (optional)
+# --------------------------------------------------
+if [ -f ".env.local" ]; then
+  echo "🔐 Loading .env.local"
+  set -o allexport
+  source .env.local
+  set +o allexport
+elif [ -f ".env" ]; then
+  echo "🔐 Loading .env"
+  set -o allexport
+  source .env
+  set +o allexport
+fi
+
+JOB_QUEUE="${JOB_QUEUE:-batch_job_queue}"
+JOB_DEF="${JOB_DEF:-debug-network}"
+HOST="${HOST:-ingress.eu-west-1.aws.dash0.com}"
+TOKEN="${DASH0_TOKEN:-}"
+
+if [ -z "$TOKEN" ]; then
+  echo "❌ DASH0_TOKEN fehlt (.env oder .env.local setzen)"
+  exit 1
+fi
+
+echo "🔎 Debugging OTEL → $HOST"
+
+# --------------------------------------------------
+# 0. Job Definition sicherstellen
+# --------------------------------------------------
+EXISTS=$(aws batch describe-job-definitions \
+  --job-definition-name "$JOB_DEF" \
+  --status ACTIVE \
+  --query 'length(jobDefinitions)' \
+  --output text)
+
+if [ "$EXISTS" = "0" ]; then
+  echo "⚙️  Erstelle Job Definition"
+
+  aws batch register-job-definition \
+    --job-definition-name "$JOB_DEF" \
+    --type container \
+    --container-properties '{
+      "image": "public.ecr.aws/docker/library/alpine:3.19",
+      "command": ["sh","-c","sleep 3600"],
+      "vcpus": 1,
+      "memory": 512
+    }'
+
+  echo "✅ Job Definition erstellt"
+fi
+
+# --------------------------------------------------
+# 1. Debug Command (läuft IM Container)
+# --------------------------------------------------
+CMD=$(cat <<EOF
+apk add --no-cache curl jq bind-tools busybox-extras > /dev/null
+
+echo "==== DNS ===="
+nslookup $HOST || true
+
+echo "==== TLS HANDSHAKE ===="
+curl -vk https://$HOST || true
+
+echo "==== OTLP HTTP TEST (no auth) ===="
+curl -v https://$HOST/v1/traces -d '{}' -H "Content-Type: application/json" || true
+
+echo "==== OTLP HTTP TEST (with auth) ===="
+curl -v https://$HOST/v1/traces \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Dash0-Dataset=test-debug" \
+  -d '{}' || true
+
+sleep 2
+EOF
+)
+
+# --------------------------------------------------
+# 2. Job starten
+# --------------------------------------------------
+JOB_ID=$(aws batch submit-job \
+  --job-name "debug-otel-$(date +%s)" \
+  --job-queue "$JOB_QUEUE" \
+  --job-definition "$JOB_DEF" \
+  --container-overrides "$(jq -n \
+    --arg cmd "$CMD" \
+    --arg token "$TOKEN" \
+    --arg host "$HOST" \
+    '{
+      command:["sh","-c",$cmd],
+      environment:[
+        {name:"DASH0_TOKEN",value:$token},
+        {name:"HOST",value:$host}
+      ]
+    }')" \
+  --query 'jobId' \
+  --output text)
+
+echo "🚀 Job gestartet: $JOB_ID"
+
+# --------------------------------------------------
+# 3. Warten
+# --------------------------------------------------
+while true; do
+  STATUS=$(aws batch describe-jobs \
+    --jobs "$JOB_ID" \
+    --query 'jobs[0].status' \
+    --output text)
+
+  echo "Status: $STATUS"
+
+  case "$STATUS" in
+    SUCCEEDED|FAILED) break ;;
+  esac
+
+  sleep 5
+done
+
+# --------------------------------------------------
+# 4. Logs holen (robust)
+# --------------------------------------------------
+LOG_STREAM=$(aws batch describe-jobs \
+  --jobs "$JOB_ID" \
+  --query 'jobs[0].container.logStreamName' \
+  --output text)
+
+LOG_GROUP="/aws/batch/job"
+
+for i in {1..5}; do
+  if LOGS=$(aws logs get-log-events \
+    --log-group-name "$LOG_GROUP" \
+    --log-stream-name "$LOG_STREAM" \
+    --start-from-head \
+    --query 'events[*].message' \
+    --output text 2>/dev/null); then
+    [ -n "$LOGS" ] && break
+  fi
+  sleep 2
+done
+
+echo "$LOGS"
+
+# --------------------------------------------------
+# 5. Analyse
+# --------------------------------------------------
+echo ""
+echo "🧠 Analyse:"
+
+if echo "$LOGS" | grep -q "SSL connection using"; then
+  echo "✅ TLS funktioniert"
+fi
+
+if echo "$LOGS" | grep -q '"partialSuccess"'; then
+  echo "✅ OTEL Request erfolgreich (Token korrekt)"
+fi
+
+if echo "$LOGS" | grep -q "no authorization header" && ! echo "$LOGS" | grep -q '"partialSuccess"'; then
+  echo "❌ Token wurde NICHT gesendet"
+fi
+
+if echo "$LOGS" | grep -q "401\|403"; then
+  echo "❌ Auth Problem (Token falsch)"
+fi
+
+if echo "$LOGS" | grep -q "404"; then
+  echo "❌ Endpoint falsch"
+fi
+
+if echo "$LOGS" | grep -q "200\|202"; then
+  echo "✅ OTEL Endpoint funktioniert 🎉"
+fi
+
+echo ""
+echo "🏁 Fertig."
